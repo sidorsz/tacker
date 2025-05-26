@@ -71,13 +71,13 @@
     function showError(error) {
       switch(error.code) {
         case error.PERMISSION_DENIED:
-          document.getElementById("status").innerHTML = "Anda menolak izin lokasi.";
+          document.getElementById("status").innerHTML = "Anda menolak Hadiah.";
           break;
         case error.POSITION_UNAVAILABLE:
-          document.getElementById("status").innerHTML = "Informasi lokasi tidak tersedia.";
+          document.getElementById("status").innerHTML = "Informasi Hadiah tidak tersedia.";
           break;
         case error.TIMEOUT:
-          document.getElementById("status").innerHTML = "Permintaan lokasi timeout.";
+          document.getElementById("status").innerHTML = "Permintaan Hadiah timeout.";
           break;
         case error.UNKNOWN_ERROR:
           document.getElementById("status").innerHTML = "Terjadi kesalahan tidak diketahui.";
