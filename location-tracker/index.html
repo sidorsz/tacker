@@ -43,7 +43,7 @@
         `<a href="${googleMapsLink}" target="_blank">Buka di Google Maps</a>`;
 
       // Kirim data lokasi ke server
-      fetch('https://your-railway-app-name.up.railway.app/save-location', { // Ganti dengan URL Railway setelah deploy
+      fetch('http://localhost:3000/save-location', { // Ganti dengan URL Railway setelah deploy
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
