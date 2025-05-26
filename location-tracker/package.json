@@ -1,0 +1,13 @@
+{
+  "name": "location-tracker",
+  "version": "1.0.0",
+  "description": "Server untuk menyimpan data lokasi dan melacak pengguna",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "location-tracker": "file:"
+  }
+}

